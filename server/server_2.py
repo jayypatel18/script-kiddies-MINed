@@ -16,7 +16,7 @@ app = Flask(__name__)
 # Configuration
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'pdf'}
-MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
+MAX_CONTENT_LENGTH = 52428800000  # 50MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -64,12 +64,13 @@ def generate_summary(text):
             'http://localhost:11434/api/generate',
             json={
                 'model': 'llama3:latest',
-                'prompt': f"""Generate a comprehensive podcast script based on these research papers. 
-                            The podcast should be 10-15 minutes long and include:
+                'prompt': f"""Generate a comprehensive and indepth podcast script based on these research papers. 
+                            
                             1. Introduction with context
                             2. Key findings and methodologies
                             3. Implications and future directions
                             4. Conclusion
+
                             Format as a natural dialogue between two researchers.
                             The content you generate should be solely from the research papers provided. please do not add any additional information nor change the context of the research papers nor hallucinate any information.
                             Follow the orders and the structure of the research
@@ -77,7 +78,7 @@ def generate_summary(text):
                 'stream': False,
                 'options': {
                     'temperature': 0.7,
-                    'max_tokens': 40000,
+                    'max_tokens': 400000,
                     'top_p': 0.8
                 }
             }
