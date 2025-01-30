@@ -5,10 +5,8 @@ from flask import Flask, jsonify, request
 from werkzeug.utils import secure_filename
 from PyPDF2 import PdfReader
 from pdf2image import convert_from_path
-from PIL import Image
 import requests
 from concurrent.futures import ThreadPoolExecutor
-from transformers import AutoTokenizer
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -26,9 +24,6 @@ app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
 # OCR Configuration
 POPPLER_PATH = os.getenv('POPPLER_PATH', 'C:/Users/Lenovo/Downloads/Release-24.08.0-0/poppler-24.08.0/Library/bin')
 TESSDATA_PREFIX = os.getenv('TESSDATA_PREFIX', 'C:/Program Files/Tesseract-OCR/tessdata')
-
-# Initialize tokenizer
-tokenizer = AutoTokenizer.from_pretrained("meta-llama/Meta-Llama-3-8B")
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
@@ -72,17 +67,30 @@ def extract_text_from_pdf(pdf_path):
         print(f"Error processing PDF: {str(e)}")
     return text
 
-def chunk_text(text, chunk_size=3000, overlap=500):
-    tokens = tokenizer.encode(text)
+def chunk_text(text, chunk_size=6000, overlap=1000):
+    """
+    Simple text chunking without tokenizer
+    chunk_size: approximate character length
+    overlap: character overlap between chunks
+    """
     chunks = []
-    
     start = 0
-    while start < len(tokens):
-        end = min(start + chunk_size, len(tokens))
-        chunks.append(tokens[start:end])
-        start = end - overlap if (end - overlap) > start else end
+    
+    while start < len(text):
+        end = min(start + chunk_size, len(text))
+        chunk = text[start:end]
         
-    return [tokenizer.decode(chunk) for chunk in chunks]
+        # Find the nearest sentence end
+        if end < len(text):
+            last_period = chunk.rfind('. ')
+            if last_period != -1 and last_period > overlap:
+                end = start + last_period + 1
+                chunk = text[start:end]
+        
+        chunks.append(chunk)
+        start = end - overlap if end - overlap > start else end
+    
+    return chunks
 
 def generate_podcast(text):
     MAX_ATTEMPTS = 3
@@ -107,7 +115,7 @@ def generate_podcast(text):
                     'http://localhost:11434/api/chat',
                     json={
                         "model": "llama3:latest",
-                        "messages": conversation,
+                        "messages": conversation[-3:],  # Keep last 3 messages for context
                         "options": {"temperature": 0.2}
                     },
                     timeout=30
@@ -138,7 +146,7 @@ def generate_podcast(text):
                 'http://localhost:11434/api/chat',
                 json={
                     "model": "llama3:latest",
-                    "messages": conversation,
+                    "messages": [conversation[0], conversation[-1]],  # System prompt and final request
                     "options": {
                         "temperature": 0.6,
                         "max_tokens": 8000,
