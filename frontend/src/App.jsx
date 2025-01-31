@@ -341,9 +341,7 @@ const App = () => {
                   <Typography variant="body2" fontWeight="500">
                     Drag & drop PDF files
                   </Typography>
-                  <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                    (Up to 5 files supported)
-                  </Typography>
+                  
                 </Box>
               </StyledDropzone>
 
