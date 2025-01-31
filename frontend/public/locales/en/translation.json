@@ -1,11 +1,12 @@
 {
-    "welcome": "Vite + React",
-    "count": "Count is",
-    "edit": "Edit",
-    "save_to_test": "and save to test HMR",
-    "enter_text": "Enter text to speak",
-    "speak": "Speak",
-    "tts_not_supported": "Text-to-speech not supported in your browser",
-    "change_language": "Change Language",
-    "click_logos": "Click on the Vite and React logos to learn more"
-  }
+  "title": "Multilingual PDF Assistant",
+  "language": "Language",
+  "output_placeholder": "Response will appear here...",
+  "tts_language": "Voice Language",
+  "attached_files": "Attached Files",
+  "drag_drop_files": "Drag & drop PDFs here, or click to select",
+  "multiple_files_allowed": "Multiple files allowed",
+  "input_placeholder": "Enter your question...",
+  "send_button": "Send",
+  "error_processing": "Error processing request"
+}

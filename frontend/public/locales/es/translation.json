@@ -1,11 +1,12 @@
 {
-    "welcome": "Vite + React",
-    "count": "Cuenta es",
-    "edit": "Editar",
-    "save_to_test": "y guarda para probar HMR",
-    "enter_text": "Introduce texto para hablar",
-    "speak": "Hablar",
-    "tts_not_supported": "Texto a voz no compatible en su navegador",
-    "change_language": "Cambiar idioma",
-    "click_logos": "Haga clic en los logotipos de Vite y React para obtener más información"
-  }
+  "title": "Asistente Multilingüe PDF",
+  "language": "Idioma",
+  "output_placeholder": "La respuesta aparecerá aquí...",
+  "tts_language": "Idioma de Voz",
+  "attached_files": "Archivos Adjuntos",
+  "drag_drop_files": "Arrastra y suelta PDFs aquí, o haz clic para seleccionar",
+  "multiple_files_allowed": "Se permiten múltiples archivos",
+  "input_placeholder": "Ingrese su pregunta...",
+  "send_button": "Enviar",
+  "error_processing": "Error al procesar la solicitud"
+}
