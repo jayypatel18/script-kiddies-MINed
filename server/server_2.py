@@ -63,7 +63,7 @@ def generate_summary(text):
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'llama3:latest',
+                'model': 'llama3.2:latest',
                 'prompt': f"""Generate a comprehensive and indepth podcast script based on these research papers. 
                             
                             1. Introduction with context
