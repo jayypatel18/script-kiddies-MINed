@@ -74,17 +74,27 @@ def chunk_text(text, chunk_size):
     return chunks
 
 def clean_response(text):
-    # Remove any remaining markdown or HTML tags
+    # Remove markdown and special characters
     text = re.sub(r'<[^>]+>', '', text)
     text = re.sub(r'\[.*?\]', '', text)
-    text = re.sub(r'\*\*', '', text)
-    # Normalize whitespace
-    text = re.sub(r'\n+', '\n', text)
-    text = re.sub(r' +', ' ', text)
+    text = re.sub(r'\*{2,}', '', text)
+    text = re.sub(r'_{2,}', '', text)
+    
+    # Handle newlines and whitespace
+    text = re.sub(r'\\n', ' ', text)  # Remove escaped newlines
+    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)  # Replace single newlines with space
+    text = re.sub(r'\n+', '\n\n', text)  # Multiple newlines become double newlines
+    text = re.sub(r'[ \t]+', ' ', text)  # Collapse multiple spaces/tabs
+    text = re.sub(r'\s*([,.!?:])\s*', r'\1 ', text)  # Normalize punctuation spacing
+    text = re.sub(r'([,.!?:])\s+', r'\1 ', text)  # Fix spacing after punctuation
+    
+    # Remove other special characters
+    text = re.sub(r'[\`\*\_\[\]\(\)\#\+\-]', '', text)
+    
     return text.strip()
 
 def generate_summary_iterative(text):
-    chunk_size = 1200  # Reduced chunk size for better context handling
+    chunk_size = 1000
     chunks = chunk_text(text, chunk_size)
     
     combined_summary = ""
@@ -94,56 +104,54 @@ def generate_summary_iterative(text):
             'http://localhost:11434/api/generate',
             json={
                 'model': 'mistral:7b-instruct',
-                'prompt': f"""**Podcast Script Generation Task**
-You are creating an engaging podcast script based on a research paper. Follow these rules STRICTLY:
+                'prompt': f"""**Podcast Script Creation**
+Create an engaging podcast script from research content. Follow STRICTLY:
 
-1. TONE: Conversational and enthusiastic, like explaining to a curious friend. Use:
-   - Rhetorical questions ("Now, you might be wondering...")
-   - Conversational fillers ("Hmm, this is interesting...", "Okay, so...")
-   - Self-interruptions ("Wait, let me clarify that...")
-   - Natural pauses marked with (pause)
+1. TONE:
+   - Conversational host explaining to curious listeners
+   - Use natural speech patterns: "Hmm...", "Wait...", "So here's something interesting..."
+   - Include 2-3 rhetorical questions per segment
+   - Use brief pauses marked with (short pause)
 
 2. STRUCTURE:
-   - Start with an intriguing hook related to the research
-   - Introduce paper title and authors naturally
-   - Explain key concepts through Q&A format
-   - Use relatable analogies
-   - Highlight surprising findings dramatically
-   - End with thought-provoking conclusion
+   - Single line breaks between paragraphs
+   - Max 4 sentences per paragraph
+   - No bullet points or lists
+   - No markdown or formatting
 
-3. FORMATTING:
-   - NO markdown, HTML, or special formatting
-   - Use plain text only
-   - Single newlines between paragraphs
-   - No bullet points or numbered lists
-   - Maximum 3 sentences per paragraph
+3. CONTENT RULES:
+   - Stay 100% faithful to source material
+   - Simplify technical terms
+   - Highlight surprising findings
+   - Mention limitations if present
 
-4. CONTENT RULES:
-   - Stay strictly faithful to paper content
-   - No invented information
-   - Simplify technical jargon
-   - Acknowledge limitations where mentioned
+4. STRICT FORMATTING:
+   - Only use normal punctuation
+   - No special characters or line breaks within paragraphs
+   - Never use \n or other escape sequences
+   - Separate paragraphs with single blank lines
 
-Example format:
-"Welcome back, listeners! Today we're diving into some fascinating research about... (pause) 
-So what exactly did the team investigate? Well... (paper content explanation)
-Wait, those results seem surprising! How did they...? (methodology explanation)
-Hmm, but here's the kicker... (key findings)"
+Example:
+"Welcome back! Today we're exploring groundbreaking research about... (short pause)
+Now you might be wondering, how did they approach this problem? Well...
+But here's where it gets really interesting..."
 
-Not following these rules will result in a poor-quality script. And it is important to maintain the integrity of the research content.
-Also do not hallucinate or invent any information. You are given a mission to create a podcast script based on the research paper.
-Please follow the rules strictly. Not following the rules will result in a poor-quality script and will not be accepted.
-Also it is not allowed to have enter \ n or anything like that or any other escape characters as this will directly affect the quality of the script and we are directly going to use text to speech and use it for the podcast so please make sure that you follow the rules strictly.
-hence use of \ n or any other escape characters is not allowed and will deteriorate the quality of the script.
+BAD EXAMPLE (to avoid):
+- Using bullet points
+- Technical jargon without explanation
+- Long unbroken paragraphs
+- Any markdown formatting
 
-Now process this research content:
-{chunk}""",
+Input content:
+{chunk}
+
+Podcast script:""",
                 'stream': False,
                 'options': {
-                    'temperature': 0.8,
-                    'max_tokens': 20000,
-                    'top_p': 0.85,
-                    'repeat_penalty': 1.2
+                    'temperature': 0.78,
+                    'max_tokens': 1500,
+                    'top_p': 0.88,
+                    'repeat_penalty': 1.15
                 }
             }
         )
@@ -152,9 +160,12 @@ Now process this research content:
             cleaned = clean_response(response.json()['response'])
             combined_summary += cleaned + "\n\n"
         else:
-            combined_summary += f"(Technical difficulty with this segment - we'll skip ahead)\n\n"
+            combined_summary += "[Transition to next topic]\n\n"
 
-    return combined_summary
+    # Final cleanup pass
+    combined_summary = re.sub(r'\n{3,}', '\n\n', combined_summary)
+    combined_summary = re.sub(r' +', ' ', combined_summary)
+    return combined_summary.strip()
 
 @app.route('/process_local', methods=['GET'])
 def process_local_pdfs():
