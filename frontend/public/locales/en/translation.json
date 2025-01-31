@@ -1,0 +1,11 @@
+{
+    "welcome": "Vite + React",
+    "count": "Count is",
+    "edit": "Edit",
+    "save_to_test": "and save to test HMR",
+    "enter_text": "Enter text to speak",
+    "speak": "Speak",
+    "tts_not_supported": "Text-to-speech not supported in your browser",
+    "change_language": "Change Language",
+    "click_logos": "Click on the Vite and React logos to learn more"
+  }
