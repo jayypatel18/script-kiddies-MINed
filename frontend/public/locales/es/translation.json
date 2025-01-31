@@ -1,12 +1,15 @@
 {
-  "title": "Asistente Multilingüe PDF",
+  "title": "Asistente Multilingüe",
   "language": "Idioma",
   "output_placeholder": "La respuesta aparecerá aquí...",
   "tts_language": "Idioma de Voz",
   "attached_files": "Archivos Adjuntos",
   "drag_drop_files": "Arrastra y suelta PDFs aquí, o haz clic para seleccionar",
   "multiple_files_allowed": "Se permiten múltiples archivos",
-  "input_placeholder": "Ingrese su pregunta...",
+  "question_placeholder": "Ingrese su pregunta...",
+  "direct_text_placeholder": "Ingrese su texto aquí...",
+  "text_input": "Entrada de Texto",
+  "file_input": "Entrada de Archivo",
   "send_button": "Enviar",
   "error_processing": "Error al procesar la solicitud"
 }

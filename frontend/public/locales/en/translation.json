@@ -1,12 +1,15 @@
 {
-  "title": "Multilingual PDF Assistant",
+  "title": "Multilingual Assistant",
   "language": "Language",
   "output_placeholder": "Response will appear here...",
   "tts_language": "Voice Language",
   "attached_files": "Attached Files",
   "drag_drop_files": "Drag & drop PDFs here, or click to select",
   "multiple_files_allowed": "Multiple files allowed",
-  "input_placeholder": "Enter your question...",
+  "question_placeholder": "Enter your question...",
+  "direct_text_placeholder": "Enter your text content here...",
+  "text_input": "Text Input",
+  "file_input": "File Input",
   "send_button": "Send",
   "error_processing": "Error processing request"
 }

@@ -26,14 +26,14 @@ import {
 import { AttachFile, Send, Delete, VolumeUp } from '@mui/icons-material';
 
 const App = () => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [files, setFiles] = useState([]);
-  const [output, setOutput] = useState('');
+  const [output, setOutput] = useState(`Artificial intelligence (AI) is transforming scientific research through automated paper analysis. Recent studies show AI systems can now extract key findings from research papers with 92% accuracy. This innovation enables rapid knowledge dissemination through various formats like podcasts and summaries, making complex research accessible to broader audiences.`);
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [voices, setVoices] = useState([]);
-  const [ttsLanguage, setTtsLanguage] = useState('en-US');
-  
+  const [selectedVoice, setSelectedVoice] = useState(null);
+
   // PDF Dropzone
   const onDrop = useCallback(acceptedFiles => {
     const pdfFiles = acceptedFiles.filter(file => file.type === 'application/pdf');
@@ -51,15 +51,24 @@ const App = () => {
   // Text-to-Speech Setup
   useEffect(() => {
     if ('speechSynthesis' in window) {
-      const loadVoices = () => setVoices(window.speechSynthesis.getVoices());
+      const loadVoices = () => {
+        const voices = window.speechSynthesis.getVoices();
+        setVoices(voices);
+        // Set default voice to first English voice
+        const defaultVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
+        setSelectedVoice(defaultVoice);
+      };
       window.speechSynthesis.onvoiceschanged = loadVoices;
       loadVoices();
     }
   }, []);
 
   const speak = (text) => {
+    if (!selectedVoice || !text) return;
+    
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = ttsLanguage;
+    utterance.voice = selectedVoice;
+    utterance.lang = selectedVoice.lang;
     window.speechSynthesis.speak(utterance);
   };
 
@@ -121,22 +130,39 @@ const App = () => {
           />
           <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
             <FormControl fullWidth>
-              <InputLabel>{t('tts_language')}</InputLabel>
+              <InputLabel>{t('tts_voice')}</InputLabel>
               <Select
-                value={ttsLanguage}
-                onChange={(e) => setTtsLanguage(e.target.value)}
-                label={t('tts_language')}
+                value={selectedVoice?.voiceURI || ''}
+                onChange={(e) => {
+                  const voice = voices.find(v => v.voiceURI === e.target.value);
+                  setSelectedVoice(voice);
+                }}
+                label={t('tts_voice')}
               >
                 {voices.map(voice => (
-                  <MenuItem key={voice.lang} value={voice.lang}>
-                    {voice.name} ({voice.lang})
+                  <MenuItem 
+                    key={voice.voiceURI} 
+                    value={voice.voiceURI}
+                    sx={{ 
+                      fontFamily: voice.lang.startsWith('en-IN') ? '"Noto Sans Devanagari"' : 'inherit',
+                      fontWeight: voice.name.includes('Indian') ? 600 : 400
+                    }}
+                  >
+                    {voice.name} ({voice.lang}) {voice.lang.startsWith('en-IN') && '🇮🇳'}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <IconButton onClick={() => speak(output)} disabled={!output}>
-              <VolumeUp />
-            </IconButton>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => speak(output)}
+              disabled={!output}
+              startIcon={<VolumeUp />}
+              sx={{ minWidth: 140 }}
+            >
+              {t('play_audio')}
+            </Button>
           </Box>
         </Paper>
 
