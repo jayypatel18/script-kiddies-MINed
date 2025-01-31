@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useDropzone } from 'react-dropzone';
 import axios from 'axios';
 import {
@@ -21,98 +20,134 @@ import {
   Select,
   MenuItem,
   InputLabel,
-  FormControl
+  FormControl,
 } from '@mui/material';
 import { AttachFile, Send, Delete, VolumeUp } from '@mui/icons-material';
 
 const App = () => {
-  const { t, i18n } = useTranslation();
+  // States
   const [files, setFiles] = useState([]);
-  const [output, setOutput] = useState(`Artificial intelligence (AI) is transforming scientific research through automated paper analysis. Recent studies show AI systems can now extract key findings from research papers with 92% accuracy. This innovation enables rapid knowledge dissemination through various formats like podcasts and summaries, making complex research accessible to broader audiences.`);
+  const [output, setOutput] = useState('How are you?');
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
-  const [voices, setVoices] = useState([]);
-  const [selectedVoice, setSelectedVoice] = useState(null);
+  const [availableVoices, setAvailableVoices] = useState([]);
+  const [selectedLangCode, setSelectedLangCode] = useState('en');
+
+  // Translation options (language codes must match LibreTranslate's codes)
+  const TRANSLATION_OPTIONS = [
+    { code: 'en', label: 'English', voiceName: 'Google US English' },
+    { code: 'es', label: 'Spanish', voiceName: 'Google español' },
+    { code: 'hi', label: 'Hindi', voiceName: 'Google हिन्दी' },
+    { code: 'fr', label: 'French', voiceName: 'Google français' },
+  ];
 
   // PDF Dropzone
-  const onDrop = useCallback(acceptedFiles => {
-    const pdfFiles = acceptedFiles.filter(file => file.type === 'application/pdf');
-    setFiles(prev => [...prev, ...pdfFiles.map(file => 
-      Object.assign(file, { preview: URL.createObjectURL(file) })
-    )]);
+  const onDrop = useCallback((acceptedFiles) => {
+    const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
+    setFiles((prev) => [
+      ...prev,
+      ...pdfFiles.map((file) => Object.assign(file, { preview: URL.createObjectURL(file) })),
+    ]);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    accept: {'application/pdf': ['.pdf']},
-    multiple: true
+    accept: { 'application/pdf': ['.pdf'] },
+    multiple: true,
   });
 
-  // Text-to-Speech Setup
+  // Load browser voices
   useEffect(() => {
     if ('speechSynthesis' in window) {
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
-        setVoices(voices);
-        // Set default voice to first English voice
-        const defaultVoice = voices.find(v => v.lang.startsWith('en')) || voices[0];
-        setSelectedVoice(defaultVoice);
+        setAvailableVoices(voices);
       };
       window.speechSynthesis.onvoiceschanged = loadVoices;
       loadVoices();
     }
   }, []);
 
-  const speak = (text) => {
-    if (!selectedVoice || !text) return;
-    
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.voice = selectedVoice;
-    utterance.lang = selectedVoice.lang;
-    window.speechSynthesis.speak(utterance);
+  // Free translation using LibreTranslate's public API
+  const translateText = async (text, targetLang) => {
+    try {
+      const response = await axios.post(
+        'https://libretranslate.com/translate',
+        {
+          q: text,
+          source: 'en', // Input text is assumed to be English
+          target: targetLang,
+          format: 'text',
+        },
+        { headers: { 'Content-Type': 'application/json' } }
+      );
+      return response.data.translatedText;
+    } catch (error) {
+      console.error('Translation error:', error);
+      return text; // Fallback to original text
+    }
   };
 
-  // API Submission
+  // Speak translated text
+  const speakTranslatedText = async (text, targetLang) => {
+    if (!text) return;
+
+    const translated = await translateText(text, targetLang);
+    setOutput(translated);
+
+    if ('speechSynthesis' in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(translated);
+
+      // Find matching voice
+      const voice = availableVoices.find((v) => 
+        v.lang.startsWith(targetLang) || 
+        v.name.includes(TRANSLATION_OPTIONS.find(l => l.code === targetLang)?.label)
+      );
+
+      if (voice) {
+        utterance.voice = voice;
+        utterance.lang = voice.lang;
+      } else {
+        utterance.lang = targetLang;
+      }
+
+      window.speechSynthesis.speak(utterance);
+    }
+  };
+
+  // Submit handler (PDF processing would need your own backend)
   const handleSubmit = async () => {
     if (!inputText && files.length === 0) return;
 
-    const formData = new FormData();
-    files.forEach(file => formData.append('pdfs', file));
-    formData.append('question', inputText);
-
+    // Simulated API call - replace with actual PDF processing
     try {
       setLoading(true);
-      const response = await axios.post('http://localhost:5000/api/process', formData);
-      setOutput(response.data.result);
-      speak(response.data.result);
+      // This is where you'd send PDFs to your backend
+      // For now, we'll just use the input text directly
+      const result = inputText;
+      setOutput(result);
+      speakTranslatedText(result, selectedLangCode);
     } catch (error) {
       console.error(error);
-      setOutput(t('error_processing'));
+      setOutput('Error processing request');
     } finally {
       setLoading(false);
     }
   };
 
+  // Remove file
   const removeFile = (fileName) => {
-    setFiles(files.filter(file => file.name !== fileName));
+    setFiles(files.filter((file) => file.name !== fileName));
   };
 
   return (
     <div>
       <AppBar position="static">
         <Toolbar>
-          <Typography variant="h6" sx={{ flexGrow: 1 }}>{t('title')}</Typography>
-          <FormControl variant="standard" sx={{ minWidth: 120, color: 'white' }}>
-            <InputLabel sx={{ color: 'white' }}>{t('language')}</InputLabel>
-            <Select
-              value={localStorage.getItem('i18nextLng') || 'en'}
-              onChange={(e) => i18n.changeLanguage(e.target.value)}
-              sx={{ color: 'white' }}
-            >
-              <MenuItem value="en">English</MenuItem>
-              <MenuItem value="es">Español</MenuItem>
-            </Select>
-          </FormControl>
+          <Typography variant="h6" sx={{ flexGrow: 1 }}>
+            Free Multilingual PDF Assistant
+          </Typography>
         </Toolbar>
       </AppBar>
 
@@ -126,57 +161,46 @@ const App = () => {
             value={output}
             variant="outlined"
             InputProps={{ readOnly: true }}
-            placeholder={t('output_placeholder')}
+            placeholder="Translated response will appear here..."
           />
           <Box sx={{ mt: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
             <FormControl fullWidth>
-              <InputLabel>{t('tts_voice')}</InputLabel>
+              <InputLabel>Output Language</InputLabel>
               <Select
-                value={selectedVoice?.voiceURI || ''}
-                onChange={(e) => {
-                  const voice = voices.find(v => v.voiceURI === e.target.value);
-                  setSelectedVoice(voice);
-                }}
-                label={t('tts_voice')}
+                value={selectedLangCode}
+                onChange={(e) => setSelectedLangCode(e.target.value)}
+                label="Output Language"
               >
-                {voices.map(voice => (
-                  <MenuItem 
-                    key={voice.voiceURI} 
-                    value={voice.voiceURI}
-                    sx={{ 
-                      fontFamily: voice.lang.startsWith('en-IN') ? '"Noto Sans Devanagari"' : 'inherit',
-                      fontWeight: voice.name.includes('Indian') ? 600 : 400
-                    }}
-                  >
-                    {voice.name} ({voice.lang}) {voice.lang.startsWith('en-IN') && '🇮🇳'}
+                {TRANSLATION_OPTIONS.map((option) => (
+                  <MenuItem key={option.code} value={option.code}>
+                    {option.label}
                   </MenuItem>
                 ))}
               </Select>
             </FormControl>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => speak(output)}
+            <IconButton
+              onClick={() => speakTranslatedText(output, selectedLangCode)}
               disabled={!output}
-              startIcon={<VolumeUp />}
-              sx={{ minWidth: 140 }}
             >
-              {t('play_audio')}
-            </Button>
+              <VolumeUp />
+            </IconButton>
           </Box>
         </Paper>
 
         {/* Attached Files */}
         {files.length > 0 && (
           <Paper sx={{ mb: 2, p: 2 }}>
-            <Typography variant="subtitle1">{t('attached_files')}:</Typography>
+            <Typography variant="subtitle1">Attached PDFs:</Typography>
             <List dense>
-              {files.map(file => (
-                <ListItem key={file.name} secondaryAction={
-                  <IconButton edge="end" onClick={() => removeFile(file.name)}>
-                    <Delete />
-                  </IconButton>
-                }>
+              {files.map((file) => (
+                <ListItem
+                  key={file.name}
+                  secondaryAction={
+                    <IconButton edge="end" onClick={() => removeFile(file.name)}>
+                      <Delete />
+                    </IconButton>
+                  }
+                >
                   <ListItemIcon>
                     <AttachFile />
                   </ListItemIcon>
@@ -187,23 +211,26 @@ const App = () => {
           </Paper>
         )}
 
-        {/* Drag & Drop Zone */}
-        <Paper {...getRootProps()} sx={{ 
-          p: 4, 
-          mb: 2, 
-          border: '2px dashed',
-          borderColor: isDragActive ? 'primary.main' : 'text.secondary',
-          backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
-          textAlign: 'center',
-          cursor: 'pointer'
-        }}>
+        {/* PDF Upload Zone */}
+        <Paper
+          {...getRootProps()}
+          sx={{
+            p: 4,
+            mb: 2,
+            border: '2px dashed',
+            borderColor: isDragActive ? 'primary.main' : 'text.secondary',
+            backgroundColor: isDragActive ? 'action.hover' : 'background.paper',
+            textAlign: 'center',
+            cursor: 'pointer',
+          }}
+        >
           <input {...getInputProps()} />
           <AttachFile fontSize="large" />
-          <Typography>{t('drag_drop_files')}</Typography>
-          <Typography variant="caption">({t('multiple_files_allowed')})</Typography>
+          <Typography>Drag & drop PDFs here</Typography>
+          <Typography variant="caption">(Max 5 files, PDF only)</Typography>
         </Paper>
 
-        {/* Input Section */}
+        {/* Text Input */}
         <Grid container spacing={2} alignItems="center">
           <Grid item xs>
             <TextField
@@ -212,7 +239,7 @@ const App = () => {
               rows={3}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
-              placeholder={t('input_placeholder')}
+              placeholder="Or type your text here..."
               variant="outlined"
             />
           </Grid>
@@ -224,7 +251,7 @@ const App = () => {
               disabled={loading}
               startIcon={<Send />}
             >
-              {t('send_button')}
+              Process
             </Button>
           </Grid>
         </Grid>
