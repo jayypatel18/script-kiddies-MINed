@@ -42,6 +42,8 @@ const App = () => {
   const [speechError, setSpeechError] = useState('');
   const [currentSentence, setCurrentSentence] = useState(-1);
   const [isPaused, setIsPaused] = useState(false);
+  const [podcastLength, setPodcastLength] = useState(null);
+  const [contentStyle, setContentStyle] = useState(null);
 
   const sentences = useMemo(() => 
     output.match(/[^.!?]+[.!?]|[^.!?]+$/g) || []
@@ -145,6 +147,14 @@ const App = () => {
     }
   };
 
+  const handleLengthSelection = (length) => {
+    setPodcastLength(current => current === length ? null : length);
+  };
+
+  const handleContentStyle = (style) => {
+    setContentStyle(current => current === style ? null : style);
+  };
+
   const onDrop = useCallback((acceptedFiles) => {
     const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
     setFiles((prev) => [
@@ -196,17 +206,17 @@ const App = () => {
           </Paper>
         )}
 
-        <Paper sx={{ flex: 1, mb: 2, p: 2, overflow: 'auto' }}>
-          <Box
-            sx={{
-              minHeight: '200px',
-              p: 2,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: '4px',
-              whiteSpace: 'pre-wrap',
-            }}
-          >
+        <Paper sx={{ flex: 1, mb: 2, p: 2, display: 'flex', flexDirection: 'column' }}>
+          <Box sx={{ 
+            flex: 1,
+            p: 2,
+            border: '1px solid',
+            borderColor: 'divider',
+            borderRadius: '4px',
+            whiteSpace: 'pre-wrap',
+            mb: 2,
+            overflow: 'auto'
+          }}>
             {sentences.map((sentence, index) => (
               <span
                 key={index}
@@ -221,23 +231,75 @@ const App = () => {
               </span>
             ))}
           </Box>
-          <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
-            <Button
-              variant="contained"
-              onClick={() => speakText(output)}
-              disabled={!voicesReady || !output}
-              startIcon={<PlayArrow />}
-            >
-              Play from Start
-            </Button>
-            <Button
-              variant="contained"
-              onClick={togglePlayPause}
-              disabled={!voicesReady || !output || currentSentence === -1}
-              startIcon={isPaused ? <PlayArrow /> : <Pause />}
-            >
-              {isPaused ? 'Resume' : 'Pause'}
-            </Button>
+          
+          {/* Control Section */}
+          <Box sx={{ 
+            pt: 2,
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2
+          }}>
+            {/* Playback Controls (Top) */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+              <Button
+                variant="contained"
+                onClick={() => speakText(output)}
+                disabled={!voicesReady || !output}
+                startIcon={<PlayArrow />}
+                size="small"
+              >
+                Play
+              </Button>
+              <Button
+                variant="contained"
+                onClick={togglePlayPause}
+                disabled={!voicesReady || !output || currentSentence === -1}
+                startIcon={isPaused ? <PlayArrow /> : <Pause />}
+                size="small"
+              >
+                {isPaused ? 'Resume' : 'Pause'}
+              </Button>
+            </Box>
+
+            {/* Podcast Length Buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+              {['small', 'moderate', 'lengthy'].map((length) => (
+                <Button
+                  key={length}
+                  variant={podcastLength === length ? 'contained' : 'outlined'}
+                  onClick={() => handleLengthSelection(length)}
+                  color="secondary"
+                  size="small"
+                  sx={{ textTransform: 'none' }}
+                >
+                  {length.charAt(0).toUpperCase() + length.slice(1)}
+                </Button>
+              ))}
+            </Box>
+
+            {/* Content Style Buttons */}
+            <Box sx={{ display: 'flex', justifyContent: 'center', gap: 1 }}>
+              <Button
+                variant={contentStyle === 'concise' ? 'contained' : 'outlined'}
+                onClick={() => handleContentStyle('concise')}
+                color="primary"
+                size="small"
+                sx={{ textTransform: 'none' }}
+              >
+                Concise
+              </Button>
+              <Button
+                variant={contentStyle === 'elaborate' ? 'contained' : 'outlined'}
+                onClick={() => handleContentStyle('elaborate')}
+                color="primary"
+                size="small"
+                sx={{ textTransform: 'none' }}
+              >
+                Elaborate
+              </Button>
+            </Box>
           </Box>
         </Paper>
 
