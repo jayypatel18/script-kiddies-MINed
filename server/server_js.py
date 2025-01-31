@@ -76,7 +76,7 @@ def generate_summary_iterative(text):
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'llama3:latest',
+                'model': 'llama3.2:latest',
                 'prompt': f"""This is chunk {i + 1} of {len(chunks)}. 
                             Summarize the content of this research paper section for a podcast script:
                             
@@ -84,8 +84,10 @@ def generate_summary_iterative(text):
                             2. Key findings and methodologies
                             3. Implications and future directions
                             4. Conclusion
-                            
-                            Do not add additional content. Text:\n\n{chunk}""",
+                            5. Output in plain text only as this will be used in podcast script, so dont add markdown or html tags.
+                            6. In the intial part of the script, introduce the research papers and the authors (all research ).
+                            Do not add additional content. Do not hallucinate. Use the research paper content only. No need to go into the reference section. 
+                            Text:\n\n{chunk}""",
                 'stream': False,
                 'options': {
                     'temperature': 0.7,
