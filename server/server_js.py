@@ -76,18 +76,29 @@ def generate_summary_iterative(text):
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'llama3.2:latest',
+                'model': 'deepseek-r1:14b',
                 'prompt': f"""This is chunk {i + 1} of {len(chunks)}. 
-                            Summarize the content of this research paper section for a podcast script:
+                            You are generating a podcast script based on a research paper. Your task is to summarize the paper in a structured and engaging manner. Follow this format strictly:
+
+                            Start with the paper's title and mention the authors.
+                            Provide an engaging introduction that briefly explains the research topic and its relevance.
+                            Summarize the key sections of the paper, including:
+                            The research objective and the problem it addresses.
+                            The methodology used by the researchers.
+                            The main findings and their significance.
+                            Discuss the implications of the research, including its potential applications or impact.
+                            Conclude with the key takeaway from the paper, highlighting the main contributions.
+                            If the paper includes references, briefly mention that the authors cited prior works but do not generate specific details about them.
+                            Important Rules:
+
+                            Do not make up information or add content beyond what is present in the paper.
+                            Do not include the references section of the paper in the summary.
+                            Maintain a natural, engaging, and fluent tone as if narrating to an audience.
+                            The output should be in plain English with normal punctuation (no markdown, no unnecessary formatting).
+                            Also it is compulsory for you to follow the rules strictly. If you fail to do so, your response will be rejected. 
+                            And the most important thing is that give output in plain text, no need for /n or html tags or markdown only plain text
                             
-                            1. Introduction with context
-                            2. Key findings and methodologies
-                            3. Implications and future directions
-                            4. Conclusion
-                            5. Output in plain text only as this will be used in podcast script, so dont add markdown or html tags.
-                            6. In the intial part of the script, introduce the research papers and the authors (all research ).
-                            Do not add additional content. Do not hallucinate. Use the research paper content only. No need to go into the reference section. 
-                            Text:\n\n{chunk}""",
+                            Do not add additional content. Text:\n\n{chunk}""",
                 'stream': False,
                 'options': {
                     'temperature': 0.7,
@@ -102,39 +113,6 @@ def generate_summary_iterative(text):
             combined_summary += f"Error in chunk {i + 1}: {response.text}\n\n"
 
     return combined_summary.strip()
-
-# def generate_summary(text):
-#     try:
-#         print("Generating summary...")
-#         response = requests.post(
-#             'http://localhost:11434/api/generate',
-#             json={
-#                 'model': 'llama3:latest',
-#                 'prompt': f"""Generate a comprehensive and in-depth podcast script based on these research papers. 
-                            
-#                             1. Introduction with context
-#                             2. Key findings and methodologies
-#                             3. Implications and future directions
-#                             4. Conclusion
-
-#                             Format as a natural dialogue between two researchers.
-#                             The content you generate should be solely from the research papers provided. Please do not add any additional information nor change the context of the research papers nor hallucinate any information.
-#                             Follow the order and the structure of the research.
-
-#                             Papers content:\n\n{text}""",
-#                 'stream': False,
-#                 'options': {
-#                     'temperature': 0.7,
-#                     'max_tokens': 400000,
-#                     'top_p': 0.8
-#                 }
-#             }
-#         )
-#         if response.status_code == 200:
-#             return response.json()['response']
-#         return f"Error: {response.text}"
-#     except Exception as e:
-#         return f"API Error: {str(e)}"
 
 @app.route('/process_local', methods=['GET'])
 def process_local_pdfs():
