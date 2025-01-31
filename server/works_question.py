@@ -82,13 +82,12 @@ def clean_response(text):
     
     # Handle newlines and whitespace
     text = re.sub(r'\\n', ' ', text)  # Remove escaped newlines
-    text = re.sub(r'(?<!\n)\n(?!\n)', ' ', text)  # Replace single newlines with space
-    text = re.sub(r'\n+', '\n\n', text)  # Multiple newlines become double newlines
-    text = re.sub(r'[ \t]+', ' ', text)  # Collapse multiple spaces/tabs
-    text = re.sub(r'\s*([,.!?:])\s*', r'\1 ', text)  # Normalize punctuation spacing
-    text = re.sub(r'([,.!?:])\s+', r'\1 ', text)  # Fix spacing after punctuation
+    text = re.sub(r'\n', ' ', text)    # Replace ALL newlines with spaces
+    text = re.sub(r'\s+', ' ', text)   # Collapse multiple whitespace
+    text = re.sub(r'([,.!?:])\s*', r'\1 ', text)  # Normalize punctuation spacing
     
-    # Remove other special characters
+    # Remove pause indicators and special characters
+    text = re.sub(r'\(short pause\)', '', text, flags=re.IGNORECASE)
     text = re.sub(r'[\`\*\_\[\]\(\)\#\+\-]', '', text)
     
     return text.strip()
@@ -111,36 +110,33 @@ Create an engaging podcast script from research content. Follow STRICTLY:
    - Conversational host explaining to curious listeners
    - Use natural speech patterns: "Hmm...", "Wait...", "So here's something interesting..."
    - Include 2-3 rhetorical questions per segment
-   - Use brief pauses marked with (short pause)
+   - NO pause indicators or timing notes
 
 2. STRUCTURE:
-   - Single line breaks between paragraphs
+   - Continuous flowing text without line breaks
    - Max 4 sentences per paragraph
-   - No bullet points or lists
-   - No markdown or formatting
+   - No bullet points, lists, or markdown
+   - No special formatting of any kind
 
 3. CONTENT RULES:
    - Stay 100% faithful to source material
-   - Simplify technical terms
+   - Simplify technical terms naturally
    - Highlight surprising findings
    - Mention limitations if present
 
 4. STRICT FORMATTING:
    - Only use normal punctuation
-   - No special characters or line breaks within paragraphs
-   - Never use \n or other escape sequences
-   - Separate paragraphs with single blank lines
-
-Example:
-"Welcome back! Today we're exploring groundbreaking research about... (short pause)
-Now you might be wondering, how did they approach this problem? Well...
-But here's where it gets really interesting..."
+   - No line breaks or paragraph separators
+   - Never use special characters
+   - Maintain continuous prose
 
 BAD EXAMPLE (to avoid):
-- Using bullet points
-- Technical jargon without explanation
-- Long unbroken paragraphs
-- Any markdown formatting
+- "Welcome back! (short pause) Today we're..."
+- Using any parentheses for timing
+- Line breaks between sentences
+
+GOOD EXAMPLE:
+"Welcome back! Today we're exploring groundbreaking research about AI in healthcare. Now you might be wondering, how did they approach this complex problem? Let me walk you through their innovative solution. The team developed a novel framework combining..."
 
 Input content:
 {chunk}
@@ -158,13 +154,13 @@ Podcast script:""",
         
         if response.status_code == 200:
             cleaned = clean_response(response.json()['response'])
-            combined_summary += cleaned + "\n\n"
+            combined_summary += cleaned + " "
         else:
-            combined_summary += "[Transition to next topic]\n\n"
+            combined_summary += "[Transition] "
 
     # Final cleanup pass
-    combined_summary = re.sub(r'\n{3,}', '\n\n', combined_summary)
-    combined_summary = re.sub(r' +', ' ', combined_summary)
+    combined_summary = re.sub(r'\s+', ' ', combined_summary)
+    combined_summary = re.sub(r'([,.!?:])(\w)', r'\1 \2', combined_summary)
     return combined_summary.strip()
 
 @app.route('/process_local', methods=['GET'])
