@@ -76,7 +76,7 @@ def generate_summary_iterative(text):
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'deepseek-r1:14b',
+                'model': 'llama3:latest',
                 'prompt': f"""This is chunk {i + 1} of {len(chunks)}. 
                             You are generating a podcast script based on a research paper. Your task is to summarize the paper in a structured and engaging manner. Follow this format strictly:
 
