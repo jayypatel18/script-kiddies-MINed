@@ -17,7 +17,7 @@ import {
   Box,
   TextField
 } from '@mui/material';
-import { AttachFile, Send, Delete, VolumeUp } from '@mui/icons-material';
+import { AttachFile, Send, Delete, VolumeUp, PlayArrow, Pause } from '@mui/icons-material';
 
 const CHROME_VOICES = {
   male: {
@@ -41,13 +41,12 @@ const App = () => {
   const [voicesReady, setVoicesReady] = useState(false);
   const [speechError, setSpeechError] = useState('');
   const [currentSentence, setCurrentSentence] = useState(-1);
+  const [isPaused, setIsPaused] = useState(false);
 
-  // Split output into sentences
   const sentences = useMemo(() => 
     output.match(/[^.!?]+[.!?]|[^.!?]+$/g) || []
   , [output]);
 
-  // Voice initialization
   useEffect(() => {
     const initializeVoices = () => {
       if (!window.speechSynthesis) {
@@ -70,7 +69,12 @@ const App = () => {
     initializeVoices();
   }, []);
 
-  // Speech functions
+  useEffect(() => {
+    if (currentSentence === -1) {
+      setIsPaused(false);
+    }
+  }, [currentSentence]);
+
   const getVoice = () => {
     const voices = window.speechSynthesis.getVoices();
     const voiceConfig = CHROME_VOICES.male;
@@ -86,6 +90,7 @@ const App = () => {
       if (!text) return;
       window.speechSynthesis.cancel();
       setCurrentSentence(-1);
+      setIsPaused(false);
 
       const voice = getVoice();
       if (!voice) {
@@ -104,7 +109,6 @@ const App = () => {
         utterance.voice = voice;
         utterance.lang = 'en-US';
 
-        // Prosody adjustments
         const lastChar = sentence.slice(-1);
         const config = CHROME_VOICES.male.config;
         switch(lastChar) {
@@ -131,7 +135,16 @@ const App = () => {
     }
   };
 
-  // File handling
+  const togglePlayPause = () => {
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+      setIsPaused(false);
+    } else {
+      window.speechSynthesis.pause();
+      setIsPaused(true);
+    }
+  };
+
   const onDrop = useCallback((acceptedFiles) => {
     const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
     setFiles((prev) => [
@@ -146,7 +159,6 @@ const App = () => {
     multiple: true,
   });
 
-  // Form submission
   const handleSubmit = async () => {
     if (!inputText && files.length === 0) return;
 
@@ -212,12 +224,19 @@ const App = () => {
           <Box sx={{ mt: 2, display: 'flex', gap: 2, justifyContent: 'flex-end' }}>
             <Button
               variant="contained"
-              startIcon={<VolumeUp />}
               onClick={() => speakText(output)}
               disabled={!voicesReady || !output}
-              sx={{ minWidth: 120 }}
+              startIcon={<PlayArrow />}
             >
-              {voicesReady ? 'Speak' : 'Loading Voices...'}
+              Play from Start
+            </Button>
+            <Button
+              variant="contained"
+              onClick={togglePlayPause}
+              disabled={!voicesReady || !output || currentSentence === -1}
+              startIcon={isPaused ? <PlayArrow /> : <Pause />}
+            >
+              {isPaused ? 'Resume' : 'Pause'}
             </Button>
           </Box>
         </Paper>
