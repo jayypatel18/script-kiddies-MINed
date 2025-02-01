@@ -118,7 +118,7 @@ const App = () => {
   const [voicesReady, setVoicesReady] = useState(false);
   const [speechError, setSpeechError] = useState('');
   const [currentSentence, setCurrentSentence] = useState(-1);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(true);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [podcastLength, setPodcastLength] = useState(null);
   const [contentStyle, setContentStyle] = useState(null);
@@ -604,7 +604,7 @@ const App = () => {
                     variant="contained"
                     onClick={handlePlayPause}
                     disabled={!voicesReady}
-                    startIcon={isPaused ? <PlayArrow /> : <Pause />}
+                    startIcon={isSpeaking && !isPaused ? <Pause /> : <PlayArrow />}
                   >
                     {isSpeaking ? (isPaused ? 'Resume' : 'Pause') : 'Play'}
                   </PlayButton>
