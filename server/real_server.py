@@ -172,7 +172,7 @@ Transform this research content into an engaging podcast script. Follow STRICTLY
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'llama3:latest',
+                'model': 'mistral:7b-instruct',
                 'prompt': prompt,
                 'stream': False,
                 'options': {
