@@ -26,11 +26,11 @@ import {
   Delete,
   PlayArrow,
   Pause,
-  VolumeUp
+  VolumeUp,
+  Download
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 
-// ElevenLabs Configuration
 const ELEVEN_LABS_CONFIG = {
   apiKey: import.meta.env.VITE_ELEVEN_LABS_API_KEY,
   voiceId: import.meta.env.VITE_ELEVEN_LABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM',
@@ -118,29 +118,66 @@ const App = () => {
   const [podcastLength, setPodcastLength] = useState(null);
   const [contentStyle, setContentStyle] = useState(null);
   const [validationError, setValidationError] = useState('');
+  const [generatingDownload, setGeneratingDownload] = useState(false);
 
-  // We keep only a single audio reference, to avoid multiple overlapping plays.
   const audioRef = useRef(null);
+  const currentIndexRef = useRef(-1);
 
-  // Split the output text into sentences.
   const sentences = useMemo(
     () => output.match(/[^.!?]+[.!?]|[^.!?]+$/g) || [],
     [output]
   );
 
-  // Clean up the single audio element on unmount.
   useEffect(() => {
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
-        audioRef.current.src = '';
+        URL.revokeObjectURL(audioRef.current.src);
       }
     };
   }, []);
 
-  // Create a single function to play one sentence at a time.
+  const handleDownload = async () => {
+    if (!output) return;
+    
+    try {
+      setGeneratingDownload(true);
+      const response = await axios.post(
+        `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_CONFIG.voiceId}`,
+        {
+          text: output,
+          model_id: ELEVEN_LABS_CONFIG.model,
+          voice_settings: {
+            stability: ELEVEN_LABS_CONFIG.stability,
+            similarity_boost: ELEVEN_LABS_CONFIG.similarityBoost
+          }
+        },
+        {
+          responseType: 'blob',
+          headers: {
+            'xi-api-key': ELEVEN_LABS_CONFIG.apiKey,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const url = URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'podcast.mp3';
+      document.body.appendChild(link);
+      link.click();
+      URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('Download error:', error);
+      setSpeechError('Error generating download');
+    } finally {
+      setGeneratingDownload(false);
+    }
+  };
+
   const playSentence = async (index) => {
-    // If we've reached the end, finish speaking.
     if (index >= sentences.length) {
       setIsSpeaking(false);
       return;
@@ -149,13 +186,11 @@ const App = () => {
     setCurrentSentence(index);
     const sentence = sentences[index].trim();
     if (!sentence) {
-      // Move to the next sentence if the current one is empty.
       await playSentence(index + 1);
       return;
     }
 
     try {
-      // Send request to ElevenLabs for the current sentence.
       const response = await axios.post(
         `https://api.elevenlabs.io/v1/text-to-speech/${ELEVEN_LABS_CONFIG.voiceId}`,
         {
@@ -175,28 +210,23 @@ const App = () => {
         }
       );
 
-      // Create a new audio object for just this sentence.
       const audioUrl = URL.createObjectURL(response.data);
       const newAudio = new Audio(audioUrl);
       audioRef.current = newAudio;
 
-      // When the sentence finishes, move to the next.
       newAudio.addEventListener('ended', () => {
         URL.revokeObjectURL(audioUrl);
         playSentence(index + 1);
       });
 
-      // If the user manually pauses, update isPaused state.
       newAudio.addEventListener('pause', () => {
         setIsPaused(true);
       });
 
-      // If the user resumes audio, update isPaused state.
       newAudio.addEventListener('play', () => {
         setIsPaused(false);
       });
 
-      // Actually play the sentence.
       await newAudio.play();
     } catch (err) {
       console.error('Audio error:', err);
@@ -205,7 +235,6 @@ const App = () => {
     }
   };
 
-  // Start speaking the entire output, from the first sentence.
   const speakText = async (text) => {
     if (!text) return;
     setIsSpeaking(true);
@@ -221,7 +250,6 @@ const App = () => {
     }
   };
 
-  // Validate that the user selected files, style, and duration.
   const validateSelections = () => {
     if (!podcastLength || !contentStyle || files.length === 0) {
       setValidationError('Please select PDFs, duration, and content style before generating');
@@ -231,24 +259,18 @@ const App = () => {
     return true;
   };
 
-  // Handle the play/pause button.
   const handlePlayPause = () => {
-    // If already speaking, toggle pause/resume.
     if (isSpeaking) {
       if (isPaused) {
-        // Resume current audio.
         audioRef.current?.play();
       } else {
-        // Pause current audio.
         audioRef.current?.pause();
       }
     } else {
-      // If not currently speaking, start from beginning.
       speakText(output);
     }
   };
 
-  // Handle the stop button (stop fully resets the reading).
   const handleStop = () => {
     if (audioRef.current) {
       audioRef.current.pause();
@@ -259,7 +281,6 @@ const App = () => {
     setCurrentSentence(-1);
   };
 
-  // Handle dropped PDF files.
   const onDrop = useCallback((acceptedFiles) => {
     const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
     setFiles((prev) => [
@@ -274,7 +295,6 @@ const App = () => {
     multiple: true
   });
 
-  // Submit to generate the summary/podcast content.
   const handleSubmit = async () => {
     if (!validateSelections()) return;
     try {
@@ -302,7 +322,6 @@ const App = () => {
     }
   };
 
-  // Remove a single PDF file from the selection.
   const removeFile = (fileName) => {
     setFiles(files.filter((file) => file.name !== fileName));
   };
@@ -317,7 +336,7 @@ const App = () => {
             <VolumeUp sx={{ mr: 2, fontSize: 32, color: 'white' }} />
             <Box>
               <Typography variant="h6" fontWeight="700" color="white">
-                VoiceCraft Studio (Script Kiddies)
+                VoiceCraft Studio
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                 Transform research papers into podcasts
@@ -339,7 +358,6 @@ const App = () => {
         }}
       >
         <Grid container spacing={4} sx={{ width: '100%', alignItems: 'stretch' }}>
-          {/* Left Column: Input Settings */}
           <Grid
             item
             xs={12}
@@ -416,7 +434,6 @@ const App = () => {
                 </Box>
               )}
 
-              {/* Content Style */}
               <Box sx={{ mb: 3 }}>
                 <Typography
                   variant="caption"
@@ -428,7 +445,7 @@ const App = () => {
                   Content Style
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                  {[
+                {[
                     'concise',
                     'elaborate',
                     'balanced',
@@ -449,7 +466,6 @@ const App = () => {
                 </Box>
               </Box>
 
-              {/* Podcast Duration */}
               <Box sx={{ mb: 3 }}>
                 <Typography
                   variant="caption"
@@ -501,7 +517,6 @@ const App = () => {
             </AnimatedPaper>
           </Grid>
 
-          {/* Right Column: Podcast Preview and Playback */}
           <Grid
             item
             xs={12}
@@ -600,9 +615,10 @@ const App = () => {
                   <PlayButton
                     variant="contained"
                     onClick={handlePlayPause}
+                    disabled={!isSpeaking && sentences.length === 0}
                     startIcon={isSpeaking && !isPaused ? <Pause /> : <PlayArrow />}
                   >
-                    {isSpeaking ? (isPaused ? 'Resume' : 'Pause') : 'Play'}
+                    {!isSpeaking ? 'Play' : isPaused ? 'Resume' : 'Pause'}
                   </PlayButton>
 
                   <Button
@@ -616,6 +632,21 @@ const App = () => {
                     }}
                   >
                     Stop
+                  </Button>
+
+                  <Button
+                    variant="contained"
+                    color="secondary"
+                    onClick={handleDownload}
+                    disabled={generatingDownload || !hasContent}
+                    startIcon={<Download />}
+                    sx={{
+                      borderRadius: '28px',
+                      textTransform: 'none',
+                      width: isMobile ? '100%' : 'auto'
+                    }}
+                  >
+                    {generatingDownload ? 'Generating...' : 'Download MP3'}
                   </Button>
                 </Box>
               )}
