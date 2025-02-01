@@ -99,31 +99,74 @@ def generate_summary_iterative(text, content_style, duration):
     }
     
     style_instruction = {
-        'concise': "Create a concise summary focusing on key findings",
-        'elaborate': "Provide detailed explanations with examples",
-        'balanced': "Create a balanced summary with key findings and explanations",
-        'formal': "Create a formal summary with detailed explanations",
-        'casual': "Create a casual summary with key findings and examples",
-        'professional': "Create a professional summary with detailed explanations"
+        'concise': "Focus on key findings with minimal elaboration, using clear direct language",
+        'elaborate': "Include detailed explanations with real-world examples and analogies",
+        'balanced': "Balance key points with contextual information, using both facts and narrative",
+        'formal': "Maintain academic tone with structured arguments and technical terminology",
+        'casual': "Use conversational language with personal anecdotes and rhetorical questions",
+        'professional': "Present well-researched insights with data references and expert quotes also use technical terms"
     }
     
     temperature, max_tokens = duration_map.get(duration, (0.78, 1500))
     
     combined_summary = ""
+    title_added = False  # Track if title has been added
+    
     for i, chunk in enumerate(chunks):
-        print(f"Processing chunk {i+1}/{len(chunks)}") # print chunk so we can track progress
-        prompt = f"""**Podcast Script Creation**
-Create an engaging podcast script from research content. Follow STRICTLY:
+        print(f"Processing chunk {i+1}/{len(chunks)}")
+        
+        # Structure instructions based on chunk position
+        structure_rules = []
+        if i == 0:
+            structure_rules = [
+                "BEGIN WITH: 'Title: \"[ENGAGING TITLE]\"' on first line",
+                "Follow with host introduction that sets context",
+                "Include brief overview of topics"
+            ]
+        elif i == len(chunks)-1:
+            structure_rules = [
+                "Conclude with key takeaways and final thoughts",
+                "End with memorable closing statement",
+                "Include call-to-action for listeners"
+            ]
+        else:
+            structure_rules = [
+                "Use natural transitions: 'Now, building on this...', 'Another crucial aspect...'",
+                "Maintain narrative flow from previous content",
+                "Include supporting examples or data points"
+            ]
 
-1. CONTENT STYLE: {style_instruction.get(content_style, '')}
-2. TARGET DURATION: {duration.capitalize()}
-3. TONE: Conversational, engaging, professional
-4. STRUCTURE: Continuous flowing text without breaks
+        prompt = f"""**Podcast Script Creation Guide**
+Transform this research content into an engaging podcast script. Follow STRICTLY:
 
-Input content:
+1. CONTENT STYLE: {style_instruction[content_style]}
+2. TARGET DURATION: {duration.capitalize()} 
+3. CORE STRUCTURE:
+   - {structure_rules[0]}
+   - {structure_rules[1]}
+   - {structure_rules[2]}
+
+**RULES:**
+- FIRST CHUNK ONLY: Single title line at beginning
+- NO MARKDOWN/HEADINGS in body text
+- AVOID repetition between chunks
+- USE conversational transitions between ideas
+- BALANCE facts with engaging commentary
+- INCLUDE 2-3 rhetorical questions per chunk
+- CITE surprising statistics where available
+- ADD relatable analogies for complex concepts
+- NO EMOJIS or SPECIAL CHARACTERS
+
+**TONE:**
+- Friendly yet authoritative
+- Enthusiastic but professional
+- Accessible to non-experts
+- Vary sentence structure and length
+
+**INPUT CONTENT:**
 {chunk}
 
-Podcast script:"""
+**PODCAST SCRIPT:**"""
 
         response = requests.post(
             'http://localhost:11434/api/generate',
@@ -135,19 +178,40 @@ Podcast script:"""
                     'temperature': temperature,
                     'max_tokens': max_tokens,
                     'top_p': 0.88,
-                    'repeat_penalty': 1.15
+                    'repeat_penalty': 1.25  # Increased to reduce repetition
                 }
             }
         )
         
         if response.status_code == 200:
             cleaned = clean_response(response.json()['response'])
-            combined_summary += cleaned + " "
-        else:
-            combined_summary += "[Transition] "
+            
+            # Post-processing rules
+            if i > 0:
+                # Remove any accidental titles in middle chunks
+                cleaned = re.sub(r'Title: ".+?"\n', '', cleaned)
+                # Remove section headers
+                cleaned = re.sub(r'\b(Segment|Part) \d+:', '', cleaned, flags=re.IGNORECASE)
+            
+            # Ensure only one title exists
+            if not title_added and re.search(r'Title: ".+?"', cleaned):
+                title_added = True
+            elif title_added:
+                cleaned = re.sub(r'Title: ".+?"\n', '', cleaned)
 
+            combined_summary += cleaned + " "
+
+    # Final cleanup pipeline
     combined_summary = re.sub(r'\s+', ' ', combined_summary)
     combined_summary = re.sub(r'([,.!?:])(\w)', r'\1 \2', combined_summary)
+    
+    # Ensure single title format
+    title_match = re.search(r'Title: ".+?"', combined_summary)
+    if title_match:
+        title = title_match.group(0)
+        combined_summary = re.sub(r'Title: ".+?"\s*', '', combined_summary)
+        combined_summary = f"{title}\n\n{combined_summary.strip()}"
+    
     return combined_summary.strip()
 
 @app.route('/generate', methods=['POST'])
