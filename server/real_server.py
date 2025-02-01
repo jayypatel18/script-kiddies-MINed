@@ -100,13 +100,18 @@ def generate_summary_iterative(text, content_style, duration):
     
     style_instruction = {
         'concise': "Create a concise summary focusing on key findings",
-        'elaborate': "Provide detailed explanations with examples"
+        'elaborate': "Provide detailed explanations with examples",
+        'balanced': "Create a balanced summary with key findings and explanations",
+        'formal': "Create a formal summary with detailed explanations",
+        'casual': "Create a casual summary with key findings and examples",
+        'professional': "Create a professional summary with detailed explanations"
     }
     
     temperature, max_tokens = duration_map.get(duration, (0.78, 1500))
     
     combined_summary = ""
     for i, chunk in enumerate(chunks):
+        print(f"Processing chunk {i+1}/{len(chunks)}") # print chunk so we can track progress
         prompt = f"""**Podcast Script Creation**
 Create an engaging podcast script from research content. Follow STRICTLY:
 
@@ -153,7 +158,10 @@ def process_uploaded_pdfs():
     files = request.files.getlist('pdfs')
     content_style = request.form.get('contentStyle', 'concise')
     duration = request.form.get('duration', 'moderate')
-    
+    print(f"Content style: {content_style}, Duration: {duration}")
+    # Check if files are uploaded
+    print(files)
+
     if not files or len(files) == 0:
         return jsonify({'error': 'No files selected'}), 400
     
@@ -187,7 +195,10 @@ def process_uploaded_pdfs():
         for path in saved_paths:
             if os.path.exists(path):
                 os.remove(path)
-        
+        print(f"Result ID: {result_id}")
+        print(f"Summary: {summary}")
+        print(f"Content style: {content_style}")
+        print(f"Duration: {duration}")
         return jsonify({
             'result_id': result_id,
             'summary': summary,

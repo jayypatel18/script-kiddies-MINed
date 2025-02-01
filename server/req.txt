@@ -1,1 +1,0 @@
-pip install transformers torch pdf2image pillow pytesseract requests flask python-dotenv flask-limiter PyPDF2

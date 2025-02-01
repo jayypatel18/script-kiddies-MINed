@@ -19,13 +19,13 @@ import {
   useMediaQuery,
   useTheme
 } from '@mui/material';
-import { 
-  AttachFile, 
-  Send, 
-  Delete, 
-  PlayArrow, 
+import {
+  AttachFile,
+  Send,
+  Delete,
+  PlayArrow,
   Pause,
-  VolumeUp 
+  VolumeUp
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 
@@ -55,16 +55,16 @@ const VoiceActivityIndicator = styled(Box)(({ theme, active }) => ({
   borderRadius: '50%',
   backgroundColor: active ? theme.palette.success.main : theme.palette.grey[500],
   animation: active ? `${pulse} 1s infinite` : 'none',
-  transition: 'background-color 0.3s ease',
+  transition: 'background-color 0.3s ease'
 }));
 
 const GradientAppBar = styled(AppBar)(({ theme }) => ({
   background: `linear-gradient(45deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
-  boxShadow: 'none',
+  boxShadow: 'none'
 }));
 
 const AnimatedPaper = styled(Paper)(({ theme }) => ({
-  transition: 'transform 0.2s, box-shadow 0.2s',
+  transition: 'transform 0.2s, boxShadow 0.2s',
   borderRadius: '16px',
   '&:hover': {
     transform: 'translateY(-2px)',
@@ -73,7 +73,8 @@ const AnimatedPaper = styled(Paper)(({ theme }) => ({
 }));
 
 const StyledDropzone = styled(Paper)(({ theme, isdragactive }) => ({
-  backgroundColor: isdragactive === 'true' ? alpha(theme.palette.primary.light, 0.1) : theme.palette.background.paper,
+  backgroundColor:
+    isdragactive === 'true' ? alpha(theme.palette.primary.light, 0.1) : theme.palette.background.paper,
   border: `2px dashed ${alpha(theme.palette.primary.main, 0.5)}`,
   cursor: 'pointer',
   '&:hover': {
@@ -123,9 +124,10 @@ const App = () => {
   const [contentStyle, setContentStyle] = useState(null);
   const [validationError, setValidationError] = useState('');
 
-  const sentences = useMemo(() => 
-    output.match(/[^.!?]+[.!?]|[^.!?]+$/g) || []
-  , [output]);
+  const sentences = useMemo(
+    () => output.match(/[^.!?]+[.!?]|[^.!?]+$/g) || [],
+    [output]
+  );
 
   useEffect(() => {
     const initializeVoices = () => {
@@ -133,7 +135,6 @@ const App = () => {
         setSpeechError('Speech synthesis not supported');
         return;
       }
-
       const loadVoices = () => {
         const voices = window.speechSynthesis.getVoices();
         if (voices.length > 0) {
@@ -141,11 +142,9 @@ const App = () => {
           window.speechSynthesis.onvoiceschanged = null;
         }
       };
-
       window.speechSynthesis.onvoiceschanged = loadVoices;
       loadVoices();
     };
-
     initializeVoices();
   }, []);
 
@@ -159,11 +158,12 @@ const App = () => {
   const getVoice = () => {
     const voices = window.speechSynthesis.getVoices();
     const voiceConfig = CHROME_VOICES.male;
-    
-    return voices.find(v => v.name === voiceConfig.name) ||
-           voices.find(v => voiceConfig.fallbackNames.includes(v.name)) ||
-           voices.find(v => v.lang === 'en-US' && v.name.includes('Male')) ||
-           voices.find(v => v.lang === 'en-US');
+    return (
+      voices.find((v) => v.name === voiceConfig.name) ||
+      voices.find((v) => voiceConfig.fallbackNames.includes(v.name)) ||
+      voices.find((v) => v.lang === 'en-US' && v.name.includes('Male')) ||
+      voices.find((v) => v.lang === 'en-US')
+    );
   };
 
   const speakText = (text) => {
@@ -193,17 +193,25 @@ const App = () => {
 
         const lastChar = sentence.slice(-1);
         const config = CHROME_VOICES.male.config;
-        switch(lastChar) {
-          case '?': Object.assign(utterance, config.question); break;
-          case '!': Object.assign(utterance, config.exclamation); break;
-          default: Object.assign(utterance, config.statement);
+        switch (lastChar) {
+          case '?':
+            Object.assign(utterance, config.question);
+            break;
+          case '!':
+            Object.assign(utterance, config.exclamation);
+            break;
+          default:
+            Object.assign(utterance, config.statement);
         }
 
         utterance.onend = () => {
-          setTimeout(() => processSegment(index + 1), 
-            lastChar === '?' ? config.question.pause :
-            lastChar === '!' ? config.exclamation.pause :
-            config.statement.pause
+          setTimeout(
+            () => processSegment(index + 1),
+            lastChar === '?'
+              ? config.question.pause
+              : lastChar === '!'
+              ? config.exclamation.pause
+              : config.statement.pause
           );
         };
 
@@ -214,7 +222,6 @@ const App = () => {
 
         window.speechSynthesis.speak(utterance);
       };
-
       processSegment(0);
     } catch (error) {
       console.error('Speech error:', error);
@@ -257,23 +264,21 @@ const App = () => {
     const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
     setFiles((prev) => [
       ...prev,
-      ...pdfFiles.map((file) => Object.assign(file, { preview: URL.createObjectURL(file) })),
+      ...pdfFiles.map((file) => Object.assign(file, { preview: URL.createObjectURL(file) }))
     ]);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { 'application/pdf': ['.pdf'] },
-    multiple: true,
+    multiple: true
   });
 
   const handleSubmit = async () => {
     if (!validateSelections()) return;
-
     try {
       setLoading(true);
       const formData = new FormData();
-      
       files.forEach((file) => {
         formData.append('pdfs', file);
       });
@@ -288,7 +293,6 @@ const App = () => {
       if (!response.ok) throw new Error('API request failed');
 
       const data = await response.json();
-      console.log(data);
       setOutput(data.summary);
     } catch (error) {
       console.error(error);
@@ -305,14 +309,14 @@ const App = () => {
   const hasContent = output.length > 0;
 
   return (
-    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', width: '100vw' }}>
       <GradientAppBar position="sticky">
         <Toolbar>
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
             <VolumeUp sx={{ mr: 2, fontSize: 32, color: 'white' }} />
             <Box>
               <Typography variant="h6" fontWeight="700" color="white">
-                VoiceCraft Studio
+                VoiceCraft Studio (Script Kiddies)
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
                 Transform research papers into podcasts
@@ -322,14 +326,39 @@ const App = () => {
         </Toolbar>
       </GradientAppBar>
 
-      <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
-        <Grid container spacing={4} justifyContent="center">
-          <Grid item xs={12} md={5}>
-            <AnimatedPaper elevation={3} sx={{ p: 3 }}>
+      <Container
+        maxWidth="lg"
+        sx={{
+          py: 4,
+          display: 'flex',
+          justifyContent: 'center',
+          // This ensures full coverage width for large screens, with leftover space
+          [theme.breakpoints.up('md')]: {
+            maxWidth: '90%'
+          }
+        }}
+      >
+        <Grid container spacing={4} sx={{ width: '100%', alignItems: 'stretch' }}>
+          {/* INPUT SETTINGS SECTION: 30% width on MD and above */}
+          <Grid
+            item
+            xs={12}
+            // For desktops and up: 30% width for this column
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              [theme.breakpoints.up('md')]: {
+                flexBasis: '40%',
+                maxWidth: '50%',
+                height: '100%'
+              }
+            }}
+          >
+            <AnimatedPaper elevation={3} sx={{ p: 3, flex: 1 }}>
               <Typography variant="subtitle1" fontWeight="600" mb={2}>
                 Input Settings
               </Typography>
-              
+
               <StyledDropzone
                 {...getRootProps()}
                 isdragactive={isDragActive.toString()}
@@ -339,7 +368,7 @@ const App = () => {
                 <Box sx={{ textAlign: 'center', color: 'primary.main' }}>
                   <AttachFile sx={{ fontSize: 40, mb: 1 }} />
                   <Typography variant="body2" fontWeight="500">
-                    Drag & drop PDF files
+                    Drag &amp; drop PDF files
                   </Typography>
                   <Typography variant="caption" color="textSecondary">
                     (Multiple files supported)
@@ -349,7 +378,11 @@ const App = () => {
 
               {files.length > 0 && (
                 <Box sx={{ mb: 3 }}>
-                  <Typography variant="caption" fontWeight="500" color="text.secondary">
+                  <Typography
+                    variant="caption"
+                    fontWeight="500"
+                    color="text.secondary"
+                  >
                     Attached files:
                   </Typography>
                   <List dense>
@@ -360,7 +393,8 @@ const App = () => {
                           borderRadius: 2,
                           bgcolor: 'action.hover',
                           mb: 1,
-                          pr: 8
+                          pr: 8,
+                          position: 'relative'
                         }}
                       >
                         <ListItemIcon sx={{ minWidth: 32 }}>
@@ -384,11 +418,24 @@ const App = () => {
               )}
 
               <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" fontWeight="500" color="text.secondary" display="block" mb={1}>
+                <Typography
+                  variant="caption"
+                  fontWeight="500"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
                   Content Style
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
-                  {['concise', 'elaborate'].map((style) => (
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1,  }}>
+                  {[
+                    'concise',
+                    'elaborate',
+                    'balanced',
+                    'formal',
+                    'casual',
+                    'professional'
+                  ].map((style) => (
                     <Chip
                       key={style}
                       label={style}
@@ -396,17 +443,23 @@ const App = () => {
                       onClick={() => setContentStyle(style)}
                       color="primary"
                       size="small"
-                      sx={{ flex: 1, textTransform: 'capitalize' }}
+                      sx={{ textTransform: 'capitalize' }}
                     />
                   ))}
                 </Box>
               </Box>
 
               <Box sx={{ mb: 3 }}>
-                <Typography variant="caption" fontWeight="500" color="text.secondary" display="block" mb={1}>
+                <Typography
+                  variant="caption"
+                  fontWeight="500"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
                   Podcast Duration
                 </Typography>
-                <Box sx={{ display: 'flex', gap: 1 }}>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
                   {['small', 'moderate', 'lengthy'].map((length) => (
                     <Chip
                       key={length}
@@ -415,7 +468,7 @@ const App = () => {
                       onClick={() => setPodcastLength(length)}
                       color="secondary"
                       size="small"
-                      sx={{ flex: 1, textTransform: 'capitalize' }}
+                      sx={{ textTransform: 'capitalize' }}
                     />
                   ))}
                 </Box>
@@ -447,17 +500,31 @@ const App = () => {
             </AnimatedPaper>
           </Grid>
 
-          <Grid item xs={12} md={7}>
-            <AnimatedPaper elevation={3} sx={{ p: 3, height: '100%' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
-                <Typography variant="subtitle1" fontWeight="600">
+          {/* PODCAST PREVIEW SECTION: 55% width on MD and above */}
+          <Grid
+            item
+            xs={12}
+            // For desktops and up: 55% width for this column
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              [theme.breakpoints.up('md')]: {
+                flexBasis: '60%',
+                maxWidth: '50%',
+                height: '100%'
+              }
+            }}
+          >
+            <AnimatedPaper elevation={3} sx={{ p: 3, flex: 1 }}>
+              <Box
+                sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}
+              >
+                <Typography variant="subtitle1" fontWeight="600" mb={2}>
                   Podcast Preview
                 </Typography>
                 {hasContent && (
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                    <VoiceActivityIndicator 
-                      active={isSpeaking && !isPaused} 
-                    />
+                    <VoiceActivityIndicator active={isSpeaking && !isPaused} />
                     <Typography variant="caption" color="text.secondary">
                       {isSpeaking ? (isPaused ? 'Paused' : 'Live') : 'Idle'}
                     </Typography>
@@ -485,7 +552,11 @@ const App = () => {
                         p: 1.5,
                         mb: 1,
                         borderRadius: 2,
-                        bgcolor: index === currentSentence ? 'primary.light' : 'transparent',
+                        // Reduced opacity for the highlight
+                        bgcolor:
+                          index === currentSentence
+                            ? alpha(theme.palette.primary.light, 0.3)
+                            : 'transparent',
                         transition: 'background-color 0.3s ease'
                       }}
                     >
@@ -493,7 +564,10 @@ const App = () => {
                         variant="body2"
                         sx={{
                           fontWeight: index === currentSentence ? 600 : 400,
-                          color: index === currentSentence ? 'primary.dark' : 'text.primary'
+                          color:
+                            index === currentSentence
+                              ? alpha(theme.palette.primary.dark, 0.8)
+                              : 'text.primary'
                         }}
                       >
                         {sentence}
@@ -501,13 +575,15 @@ const App = () => {
                     </Box>
                   ))
                 ) : (
-                  <Box sx={{ 
-                    height: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'text.secondary'
-                  }}>
+                  <Box
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'text.secondary'
+                    }}
+                  >
                     <Typography variant="body2">
                       Generated script will appear here
                     </Typography>
@@ -516,12 +592,14 @@ const App = () => {
               </Paper>
 
               {hasContent && (
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: 2,
-                  flexDirection: isMobile ? 'column' : 'row'
-                }}>
+                <Box
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 2,
+                    flexDirection: isMobile ? 'column' : 'row'
+                  }}
+                >
                   <PlayButton
                     variant="contained"
                     onClick={handlePlayPause}
@@ -535,8 +613,8 @@ const App = () => {
                     variant="outlined"
                     onClick={handleStop}
                     disabled={!isSpeaking}
-                    sx={{ 
-                      borderRadius: '28px', 
+                    sx={{
+                      borderRadius: '28px',
                       textTransform: 'none',
                       width: isMobile ? '100%' : 'auto'
                     }}
