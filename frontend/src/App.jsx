@@ -15,7 +15,6 @@ import {
   ListItemText,
   LinearProgress,
   Box,
-  TextField,
   Chip,
   useMediaQuery,
   useTheme
@@ -25,8 +24,7 @@ import {
   Send, 
   Delete, 
   PlayArrow, 
-  Pause, 
-  FiberManualRecord,
+  Pause,
   VolumeUp 
 } from '@mui/icons-material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
@@ -115,7 +113,6 @@ const App = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [files, setFiles] = useState([]);
   const [output, setOutput] = useState('');
-  const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
   const [voicesReady, setVoicesReady] = useState(false);
   const [speechError, setSpeechError] = useState('');
@@ -227,8 +224,8 @@ const App = () => {
   };
 
   const validateSelections = () => {
-    if (!podcastLength || !contentStyle) {
-      setValidationError('Please select both duration and content style before playing');
+    if (!podcastLength || !contentStyle || files.length === 0) {
+      setValidationError('Please select PDFs, duration, and content style before generating');
       return false;
     }
     setValidationError('');
@@ -236,8 +233,6 @@ const App = () => {
   };
 
   const handlePlayPause = () => {
-    if (!validateSelections()) return;
-    
     if (isSpeaking) {
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
@@ -258,16 +253,6 @@ const App = () => {
     setIsPaused(false);
   };
 
-  const handleLengthSelection = (length) => {
-    setPodcastLength(length);
-    setValidationError('');
-  };
-
-  const handleContentStyle = (style) => {
-    setContentStyle(style);
-    setValidationError('');
-  };
-
   const onDrop = useCallback((acceptedFiles) => {
     const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
     setFiles((prev) => [
@@ -283,16 +268,31 @@ const App = () => {
   });
 
   const handleSubmit = async () => {
-    if (!inputText && files.length === 0) return;
+    if (!validateSelections()) return;
 
     try {
       setLoading(true);
-      await new Promise(resolve => setTimeout(resolve, 500));
-      const result = inputText || "PDF content processed";
-      setOutput(result);
+      const formData = new FormData();
+      
+      files.forEach((file) => {
+        formData.append('pdfs', file);
+      });
+      formData.append('contentStyle', contentStyle);
+      formData.append('duration', podcastLength);
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!response.ok) throw new Error('API request failed');
+
+      const data = await response.json();
+      console.log(data);
+      setOutput(data.summary);
     } catch (error) {
       console.error(error);
-      setOutput('Error processing request');
+      setOutput('Error generating podcast script');
     } finally {
       setLoading(false);
     }
@@ -315,19 +315,19 @@ const App = () => {
                 VoiceCraft Studio
               </Typography>
               <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.8)' }}>
-                Transform text into natural sounding speech
+                Transform research papers into podcasts
               </Typography>
             </Box>
           </Box>
         </Toolbar>
       </GradientAppBar>
 
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Grid container spacing={4}>
+      <Container maxWidth="lg" sx={{ py: 4, display: 'flex', justifyContent: 'center' }}>
+        <Grid container spacing={4} justifyContent="center">
           <Grid item xs={12} md={5}>
             <AnimatedPaper elevation={3} sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight="600" mb={2}>
-                Input Content
+                Input Settings
               </Typography>
               
               <StyledDropzone
@@ -341,7 +341,9 @@ const App = () => {
                   <Typography variant="body2" fontWeight="500">
                     Drag & drop PDF files
                   </Typography>
-                  
+                  <Typography variant="caption" color="textSecondary">
+                    (Multiple files supported)
+                  </Typography>
                 </Box>
               </StyledDropzone>
 
@@ -381,28 +383,55 @@ const App = () => {
                 </Box>
               )}
 
-              <TextField
-                fullWidth
-                multiline
-                minRows={4}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Or type/paste your text here..."
-                variant="outlined"
-                sx={{
-                  mb: 3,
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    bgcolor: 'background.paper'
-                  }
-                }}
-              />
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="caption" fontWeight="500" color="text.secondary" display="block" mb={1}>
+                  Content Style
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {['concise', 'elaborate'].map((style) => (
+                    <Chip
+                      key={style}
+                      label={style}
+                      variant={contentStyle === style ? 'filled' : 'outlined'}
+                      onClick={() => setContentStyle(style)}
+                      color="primary"
+                      size="small"
+                      sx={{ flex: 1, textTransform: 'capitalize' }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="caption" fontWeight="500" color="text.secondary" display="block" mb={1}>
+                  Podcast Duration
+                </Typography>
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  {['small', 'moderate', 'lengthy'].map((length) => (
+                    <Chip
+                      key={length}
+                      label={length}
+                      variant={podcastLength === length ? 'filled' : 'outlined'}
+                      onClick={() => setPodcastLength(length)}
+                      color="secondary"
+                      size="small"
+                      sx={{ flex: 1, textTransform: 'capitalize' }}
+                    />
+                  ))}
+                </Box>
+              </Box>
+
+              {validationError && (
+                <Typography color="error" variant="caption" display="block" mb={2}>
+                  {validationError}
+                </Typography>
+              )}
 
               <Button
                 fullWidth
                 variant="contained"
                 onClick={handleSubmit}
-                disabled={loading || (!inputText && files.length === 0)}
+                disabled={loading || files.length === 0}
                 startIcon={<Send />}
                 sx={{
                   height: 48,
@@ -480,95 +509,40 @@ const App = () => {
                     color: 'text.secondary'
                   }}>
                     <Typography variant="body2">
-                      Generate content to see preview
+                      Generated script will appear here
                     </Typography>
                   </Box>
                 )}
               </Paper>
 
               {hasContent && (
-                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  {validationError && (
-                    <Typography color="error" variant="caption">
-                      {validationError}
-                    </Typography>
-                  )}
+                <Box sx={{ 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: 2,
+                  flexDirection: isMobile ? 'column' : 'row'
+                }}>
+                  <PlayButton
+                    variant="contained"
+                    onClick={handlePlayPause}
+                    disabled={!voicesReady}
+                    startIcon={isPaused ? <PlayArrow /> : <Pause />}
+                  >
+                    {isSpeaking ? (isPaused ? 'Resume' : 'Pause') : 'Play'}
+                  </PlayButton>
 
-                  <Box sx={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: 2,
-                    flexDirection: isMobile ? 'column' : 'row'
-                  }}>
-                    <PlayButton
-                      variant="contained"
-                      onClick={handlePlayPause}
-                      disabled={!voicesReady}
-                      startIcon={isPaused ? <PlayArrow /> : <Pause />}
-                    >
-                      {isSpeaking ? (isPaused ? 'Resume' : 'Pause') : 'Play'}
-                    </PlayButton>
-
-                    <Button
-                      variant="outlined"
-                      onClick={handleStop}
-                      disabled={!isSpeaking}
-                      sx={{ 
-                        borderRadius: '28px', 
-                        textTransform: 'none',
-                        width: isMobile ? '100%' : 'auto'
-                      }}
-                    >
-                      Stop
-                    </Button>
-                  </Box>
-
-                  <Box sx={{ 
-                    display: 'flex', 
-                    justifyContent: 'space-between', 
-                    gap: 2,
-                    flexDirection: isMobile ? 'column' : 'row'
-                  }}>
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Content Style
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        {['concise', 'elaborate'].map((style) => (
-                          <Chip
-                            key={style}
-                            label={style}
-                            variant={contentStyle === style ? 'filled' : 'outlined'}
-                            onClick={() => handleContentStyle(style)}
-                            color="primary"
-                            size="small"
-                            sx={{ flex: 1 }}
-                            disabled={isSpeaking}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="caption" color="text.secondary">
-                        Duration
-                      </Typography>
-                      <Box sx={{ display: 'flex', gap: 1 }}>
-                        {['small', 'moderate', 'lengthy'].map((length) => (
-                          <Chip
-                            key={length}
-                            label={length}
-                            variant={podcastLength === length ? 'filled' : 'outlined'}
-                            onClick={() => handleLengthSelection(length)}
-                            color="secondary"
-                            size="small"
-                            sx={{ flex: 1 }}
-                            disabled={isSpeaking}
-                          />
-                        ))}
-                      </Box>
-                    </Box>
-                  </Box>
+                  <Button
+                    variant="outlined"
+                    onClick={handleStop}
+                    disabled={!isSpeaking}
+                    sx={{ 
+                      borderRadius: '28px', 
+                      textTransform: 'none',
+                      width: isMobile ? '100%' : 'auto'
+                    }}
+                  >
+                    Stop
+                  </Button>
                 </Box>
               )}
             </AnimatedPaper>

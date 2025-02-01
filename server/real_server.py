@@ -9,15 +9,17 @@ import requests
 from dotenv import load_dotenv
 import uuid
 import re
+import tempfile
+from flask_cors import CORS 
 
 load_dotenv()
 
 app = Flask(__name__)
-
+CORS(app)
 # Configuration
-UPLOAD_FOLDER = 'uploads'
+UPLOAD_FOLDER = tempfile.mkdtemp()
 ALLOWED_EXTENSIONS = {'pdf'}
-MAX_CONTENT_LENGTH = 52428800000  # 50MB
+MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB
 
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
@@ -74,78 +76,59 @@ def chunk_text(text, chunk_size):
     return chunks
 
 def clean_response(text):
-    # Remove markdown and special characters
     text = re.sub(r'<[^>]+>', '', text)
     text = re.sub(r'\[.*?\]', '', text)
     text = re.sub(r'\*{2,}', '', text)
     text = re.sub(r'_{2,}', '', text)
-    
-    # Handle newlines and whitespace
-    text = re.sub(r'\\n', ' ', text)  # Remove escaped newlines
-    text = re.sub(r'\n', ' ', text)    # Replace ALL newlines with spaces
-    text = re.sub(r'\s+', ' ', text)   # Collapse multiple whitespace
-    text = re.sub(r'([,.!?:])\s*', r'\1 ', text)  # Normalize punctuation spacing
-    
-    # Remove pause indicators and special characters
+    text = re.sub(r'\\n', ' ', text)
+    text = re.sub(r'\n', ' ', text)
+    text = re.sub(r'\s+', ' ', text)
+    text = re.sub(r'([,.!?:])\s*', r'\1 ', text)
     text = re.sub(r'\(short pause\)', '', text, flags=re.IGNORECASE)
     text = re.sub(r'[\`\*\_\[\]\(\)\#\+\-]', '', text)
-    
     return text.strip()
 
-def generate_summary_iterative(text):
+def generate_summary_iterative(text, content_style, duration):
     chunk_size = 1000
     chunks = chunk_text(text, chunk_size)
     
+    duration_map = {
+        'small': (0.85, 1200),
+        'moderate': (0.78, 1500),
+        'lengthy': (0.70, 2000)
+    }
+    
+    style_instruction = {
+        'concise': "Create a concise summary focusing on key findings",
+        'elaborate': "Provide detailed explanations with examples"
+    }
+    
+    temperature, max_tokens = duration_map.get(duration, (0.78, 1500))
+    
     combined_summary = ""
     for i, chunk in enumerate(chunks):
-        print(f"Processing chunk {i + 1}/{len(chunks)}...")
-        response = requests.post(
-            'http://localhost:11434/api/generate',
-            json={
-                'model': 'mistral:7b-instruct',
-                'prompt': f"""**Podcast Script Creation**
+        prompt = f"""**Podcast Script Creation**
 Create an engaging podcast script from research content. Follow STRICTLY:
 
-1. TONE:
-   - Conversational host explaining to curious listeners
-   - Use natural speech patterns: "Hmm...", "Wait...", "So here's something interesting..."
-   - Include 2-3 rhetorical questions per segment
-   - NO pause indicators or timing notes
-
-2. STRUCTURE:
-   - Continuous flowing text without line breaks
-   - Max 4 sentences per paragraph
-   - No bullet points, lists, or markdown
-   - No special formatting of any kind
-
-3. CONTENT RULES:
-   - Stay 100% faithful to source material
-   - Simplify technical terms naturally
-   - Highlight surprising findings
-   - Mention limitations if present
-
-4. STRICT FORMATTING:
-   - Only use normal punctuation
-   - No line breaks or paragraph separators
-   - Never use special characters
-   - Maintain continuous prose
-
-BAD EXAMPLE (to avoid):
-- "Welcome back! (short pause) Today we're..."
-- Using any parentheses for timing
-- Line breaks between sentences
-
-GOOD EXAMPLE:
-"Welcome back! Today we're exploring groundbreaking research about AI in healthcare. Now you might be wondering, how did they approach this complex problem? Let me walk you through their innovative solution. The team developed a novel framework combining..."
+1. CONTENT STYLE: {style_instruction.get(content_style, '')}
+2. TARGET DURATION: {duration.capitalize()}
+3. TONE: Conversational, engaging, professional
+4. STRUCTURE: Continuous flowing text without breaks
 
 Input content:
 {chunk}
 
-Podcast script:""",
+Podcast script:"""
+
+        response = requests.post(
+            'http://localhost:11434/api/generate',
+            json={
+                'model': 'mistral:7b-instruct',
+                'prompt': prompt,
                 'stream': False,
                 'options': {
-                    'temperature': 0.78,
-                    'max_tokens': 1500,
+                    'temperature': temperature,
+                    'max_tokens': max_tokens,
                     'top_p': 0.88,
                     'repeat_penalty': 1.15
                 }
@@ -158,33 +141,65 @@ Podcast script:""",
         else:
             combined_summary += "[Transition] "
 
-    # Final cleanup pass
     combined_summary = re.sub(r'\s+', ' ', combined_summary)
     combined_summary = re.sub(r'([,.!?:])(\w)', r'\1 \2', combined_summary)
     return combined_summary.strip()
 
-@app.route('/process_local', methods=['GET'])
-def process_local_pdfs():
-    pdf_files = [f for f in os.listdir() if f.startswith('ref') and f.endswith('.pdf')]
-    if not pdf_files:
-        return jsonify({'error': 'No ref*.pdf files found'}), 404
-
+@app.route('/generate', methods=['POST'])
+def process_uploaded_pdfs():
+    if 'pdfs' not in request.files:
+        return jsonify({'error': 'No files uploaded'}), 400
+    
+    files = request.files.getlist('pdfs')
+    content_style = request.form.get('contentStyle', 'concise')
+    duration = request.form.get('duration', 'moderate')
+    
+    if not files or len(files) == 0:
+        return jsonify({'error': 'No files selected'}), 400
+    
+    saved_paths = []
     try:
-        combined_text = process_pdfs([os.path.abspath(f) for f in pdf_files])
-        summary = generate_summary_iterative(combined_text)
+        # Save uploaded files
+        for file in files:
+            if file and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                file.save(save_path)
+                saved_paths.append(save_path)
         
+        if not saved_paths:
+            return jsonify({'error': 'No valid PDF files uploaded'}), 400
+        
+        # Process PDFs
+        combined_text = process_pdfs(saved_paths)
+        summary = generate_summary_iterative(combined_text, content_style, duration)
+        
+        # Create result entry
         result_id = str(uuid.uuid4())
         results_storage[result_id] = {
             'summary': summary,
-            'processed_files': pdf_files
+            'content_style': content_style,
+            'duration': duration,
+            'processed_files': [os.path.basename(p) for p in saved_paths]
         }
+        
+        # Cleanup uploaded files
+        for path in saved_paths:
+            if os.path.exists(path):
+                os.remove(path)
         
         return jsonify({
             'result_id': result_id,
             'summary': summary,
-            'processed_files': pdf_files
+            'content_style': content_style,
+            'duration': duration
         })
+    
     except Exception as e:
+        # Cleanup files on error
+        for path in saved_paths:
+            if os.path.exists(path):
+                os.remove(path)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/get_summary/<result_id>', methods=['GET'])
@@ -194,4 +209,4 @@ def get_summary(result_id):
     return jsonify({'error': 'Result not found'}), 404
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=8000, debug=True)
