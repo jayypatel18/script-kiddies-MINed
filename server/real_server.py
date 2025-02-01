@@ -156,6 +156,7 @@ Transform this research content into an engaging podcast script. Follow STRICTLY
 - CITE surprising statistics where available
 - ADD relatable analogies for complex concepts
 - NO EMOJIS or SPECIAL CHARACTERS
+- ALSO ONLY THE PODCAST SCRIPT SHOULD BE GENERATED, NO NEED TO ASK FOR SUGGESTIONS AT THE END OF THE SCRIPT
 
 **TONE:**
 - Friendly yet authoritative
@@ -171,7 +172,7 @@ Transform this research content into an engaging podcast script. Follow STRICTLY
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'mistral:7b-instruct',
+                'model': 'llama3:latest',
                 'prompt': prompt,
                 'stream': False,
                 'options': {
