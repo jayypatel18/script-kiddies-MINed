@@ -89,7 +89,7 @@ pip install -r requirements.txt
 
 4. Start the Flask server
 ```bash
-python app.py
+python real_server.py
 ```
 
 ## Usage
