@@ -18,7 +18,11 @@ import {
   Box,
   Chip,
   useMediaQuery,
-  useTheme
+  useTheme,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem 
 } from '@mui/material';
 import {
   AttachFile,
@@ -38,6 +42,63 @@ const ELEVEN_LABS_CONFIG = {
   stability: 0.5,
   similarityBoost: 0.75
 };
+
+const models = [
+  {
+    label: 'mistral:7b-instruct',
+    checksum: 'f974a74358d6',
+    size: '4.1 GB',
+    preference: '(Preferred)'
+  },
+  {
+    label: 'llama3.1:latest',
+    checksum: '46e0c10c039e',
+    size: '4.9 GB',
+    preference: '(Preferred)'
+  },
+  {
+    label: 'llama3:latest',
+    checksum: '365c0bd3c000',
+    size: '4.7 GB',
+    preference: '(Preferred)'
+  },
+  {
+    label: 'mixtral:latest',
+    checksum: 'a3b6bef0f836',
+    size: '26 GB',
+    preference: ''
+  },
+  {
+    label: 'phi:latest',
+    checksum: 'e2fd6321a5fe',
+    size: '1.6 GB',
+    preference: ''
+  },
+  {
+    label: 'llava:7b',
+    checksum: '8dd30f6b0cb1',
+    size: '4.7 GB',
+    preference: ''
+  },
+  {
+    label: 'phi3:latest',
+    checksum: '4f2222927938',
+    size: '2.2 GB',
+    preference: ''
+  },
+  {
+    label: 'deepseek-r1:7b',
+    checksum: '0a8c26691023',
+    size: '4.7 GB',
+    preference: ''
+  },
+  {
+    label: 'deepseek-r1:1.5b',
+    checksum: 'a42b25d8c10a',
+    size: '1.1 GB',
+    preference: ''
+  }
+];
 
 const pulse = keyframes`
   0% { transform: scale(1); opacity: 0.8; }
@@ -119,6 +180,7 @@ const App = () => {
   const [contentStyle, setContentStyle] = useState(null);
   const [validationError, setValidationError] = useState('');
   const [generatingDownload, setGeneratingDownload] = useState(false);
+  const [selectedModel, setSelectedModel] = useState('');
 
   const audioRef = useRef(null);
   const currentIndexRef = useRef(-1);
@@ -136,6 +198,61 @@ const App = () => {
       }
     };
   }, []);
+
+  const handleModelChange = (event) => {
+    setSelectedModel(event.target.value);
+  };
+
+  const validateSelections = () => {
+    if (!podcastLength || !contentStyle || files.length === 0 || !selectedModel) {
+      setValidationError('Please select PDFs, duration, content style, and model before generating');
+      return false;
+    }
+    setValidationError('');
+    return true;
+  };
+
+  const onDrop = useCallback((acceptedFiles) => {
+    const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
+    setFiles((prev) => [
+      ...prev,
+      ...pdfFiles.map((file) => Object.assign(file, { preview: URL.createObjectURL(file) }))
+    ]);
+  }, []);
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: { 'application/pdf': ['.pdf'] },
+    multiple: true
+  });
+
+  const handleSubmit = async () => {
+    if (!validateSelections()) return;
+    try {
+      setLoading(true);
+      const formData = new FormData();
+      files.forEach((file) => {
+        formData.append('pdfs', file);
+      });
+      formData.append('contentStyle', contentStyle);
+      formData.append('duration', podcastLength);
+      formData.append('model', selectedModel);
+
+      const response = await fetch('/api/generate', {
+        method: 'POST',
+        body: formData
+      });
+      if (!response.ok) throw new Error('API request failed');
+
+      const data = await response.json();
+      setOutput(data.summary);
+    } catch (error) {
+      console.error(error);
+      setOutput('Error generating podcast script');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleDownload = async () => {
     if (!output) return;
@@ -250,15 +367,6 @@ const App = () => {
     }
   };
 
-  const validateSelections = () => {
-    if (!podcastLength || !contentStyle || files.length === 0) {
-      setValidationError('Please select PDFs, duration, and content style before generating');
-      return false;
-    }
-    setValidationError('');
-    return true;
-  };
-
   const handlePlayPause = () => {
     if (isSpeaking) {
       if (isPaused) {
@@ -279,47 +387,6 @@ const App = () => {
     setIsSpeaking(false);
     setIsPaused(false);
     setCurrentSentence(-1);
-  };
-
-  const onDrop = useCallback((acceptedFiles) => {
-    const pdfFiles = acceptedFiles.filter((file) => file.type === 'application/pdf');
-    setFiles((prev) => [
-      ...prev,
-      ...pdfFiles.map((file) => Object.assign(file, { preview: URL.createObjectURL(file) }))
-    ]);
-  }, []);
-
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
-    accept: { 'application/pdf': ['.pdf'] },
-    multiple: true
-  });
-
-  const handleSubmit = async () => {
-    if (!validateSelections()) return;
-    try {
-      setLoading(true);
-      const formData = new FormData();
-      files.forEach((file) => {
-        formData.append('pdfs', file);
-      });
-      formData.append('contentStyle', contentStyle);
-      formData.append('duration', podcastLength);
-
-      const response = await fetch('/api/generate', {
-        method: 'POST',
-        body: formData
-      });
-      if (!response.ok) throw new Error('API request failed');
-
-      const data = await response.json();
-      setOutput(data.summary);
-    } catch (error) {
-      console.error(error);
-      setOutput('Error generating podcast script');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const removeFile = (fileName) => {
@@ -346,35 +413,44 @@ const App = () => {
         </Toolbar>
       </GradientAppBar>
 
-      <Container
-        maxWidth="lg"
-        sx={{
-          py: 4,
-          display: 'flex',
-          justifyContent: 'center',
-          [theme.breakpoints.up('md')]: {
-            maxWidth: '90%'
-          }
-        }}
-      >
-        <Grid container spacing={4} sx={{ width: '100%', alignItems: 'stretch' }}>
-          <Grid
-            item
-            xs={12}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              [theme.breakpoints.up('md')]: {
-                flexBasis: '40%',
-                maxWidth: '50%',
-                height: '100%'
-              }
-            }}
-          >
-            <AnimatedPaper elevation={3} sx={{ p: 3, flex: 1 }}>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Grid container spacing={4}>
+          <Grid item xs={12} md={6}>
+            <AnimatedPaper elevation={3} sx={{ p: 3 }}>
               <Typography variant="subtitle1" fontWeight="600" mb={2}>
                 Input Settings
               </Typography>
+
+              <Box sx={{ mb: 3 }}>
+                <Typography
+                  variant="caption"
+                  fontWeight="500"
+                  color="text.secondary"
+                  display="block"
+                  mb={1}
+                >
+                  Language Model
+                </Typography>
+                <FormControl fullWidth>
+                  <InputLabel id="llm-model-label">Select LLM Model</InputLabel>
+                  <Select
+                    labelId="llm-model-label"
+                    id="llm-model-select"
+                    value={selectedModel}
+                    label="Select LLM Model"
+                    onChange={handleModelChange}
+                  >
+                    {models.map((model) => (
+                      <MenuItem 
+                        key={model.label} 
+                        value={model.label}
+                        >
+                        {model.label} ({model.size}) {model.preference}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Box>
 
               <StyledDropzone
                 {...getRootProps()}
@@ -445,14 +521,7 @@ const App = () => {
                   Content Style
                 </Typography>
                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                {[
-                    'concise',
-                    'elaborate',
-                    'balanced',
-                    'formal',
-                    'casual',
-                    'professional'
-                  ].map((style) => (
+                  {['concise', 'elaborate', 'balanced', 'formal', 'casual', 'professional'].map((style) => (
                     <Chip
                       key={style}
                       label={style}
@@ -517,20 +586,8 @@ const App = () => {
             </AnimatedPaper>
           </Grid>
 
-          <Grid
-            item
-            xs={12}
-            sx={{
-              display: 'flex',
-              flexDirection: 'column',
-              [theme.breakpoints.up('md')]: {
-                flexBasis: '60%',
-                maxWidth: '50%',
-                height: '100%'
-              }
-            }}
-          >
-            <AnimatedPaper elevation={3} sx={{ p: 3, flex: 1 }}>
+          <Grid item xs={12} md={6}>
+            <AnimatedPaper elevation={3} sx={{ p: 3 }}>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 3 }}>
                 <Typography variant="subtitle1" fontWeight="600" mb={2}>
                   Podcast Preview

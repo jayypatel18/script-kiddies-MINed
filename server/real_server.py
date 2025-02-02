@@ -88,7 +88,7 @@ def clean_response(text):
     text = re.sub(r'[\`\*\_\[\]\(\)\#\+\-]', '', text)
     return text.strip()
 
-def generate_summary_iterative(text, content_style, duration):
+def generate_summary_iterative(text, content_style, duration, model):
     chunk_size = 1000
     chunks = chunk_text(text, chunk_size)
     
@@ -111,7 +111,11 @@ def generate_summary_iterative(text, content_style, duration):
     
     combined_summary = ""
     title_added = False  # Track if title has been added
-    
+    print(f"""
+    Content style: {content_style}
+    Duration: {duration}
+    Model: {model}
+          """)
     for i, chunk in enumerate(chunks):
         print(f"Processing chunk {i+1}/{len(chunks)}")
         
@@ -172,7 +176,7 @@ Transform this research content into an engaging podcast script. Follow STRICTLY
         response = requests.post(
             'http://localhost:11434/api/generate',
             json={
-                'model': 'mistral:7b-instruct',
+                'model': model,
                 'prompt': prompt,
                 'stream': False,
                 'options': {
@@ -222,6 +226,7 @@ def process_uploaded_pdfs():
     
     files = request.files.getlist('pdfs')
     content_style = request.form.get('contentStyle', 'concise')
+    model = request.form.get('model', 'mistral:7b-instruct')
     duration = request.form.get('duration', 'moderate')
     print(f"Content style: {content_style}, Duration: {duration}")
     # Check if files are uploaded
@@ -245,7 +250,7 @@ def process_uploaded_pdfs():
         
         # Process PDFs
         combined_text = process_pdfs(saved_paths)
-        summary = generate_summary_iterative(combined_text, content_style, duration)
+        summary = generate_summary_iterative(combined_text, content_style, duration, model)
         
         # Create result entry
         result_id = str(uuid.uuid4())
