@@ -2,6 +2,10 @@
 
 VoiceCraft Studio is a modern web application that transforms research papers and PDF documents into engaging podcast-style audio content. Built with React for the frontend and Python Flask for the backend, it offers a seamless experience for converting academic content into accessible audio formats.
 
+## Video Demonstration
+
+You can view the video of the application [here](https://drive.google.com/file/d/1iqmp0r1ER57kE30gubVNN4Kqg-lBPbFh/view?usp=sharing).
+
 ## Features
 
 - 📄 Multiple PDF upload support
